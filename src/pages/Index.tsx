@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AddExpenseDialog } from "@/components/AddExpenseDialog";
 import { ExpenseList } from "@/components/ExpenseList";
+import { SettlementSummary } from "@/components/SettlementSummary";
 
 interface Expense {
   id: number;
@@ -57,6 +58,10 @@ const Index = () => {
                   <span className="font-bold">{expenses.length}</span>
                 </div>
               </div>
+            </div>
+            
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <SettlementSummary expenses={expenses} />
             </div>
           </div>
         </div>
