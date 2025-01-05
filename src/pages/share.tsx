@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDistanceToNow } from "date-fns";
 
 const SharePage = () => {
   const [searchParams] = useSearchParams();
@@ -19,36 +20,46 @@ const SharePage = () => {
     const data = JSON.parse(decodeURIComponent(sharedData));
     
     return (
-      <div className="container py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Expense Summary for {data.person}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-lg">
-              Total amount owed to <span className="font-semibold">{data.owedTo}</span>:{" "}
-              <span className="text-primary font-bold">${data.totalOwed.toFixed(2)}</span>
-            </div>
-            
-            <div className="space-y-4">
-              <h3 className="font-semibold">Expense Breakdown:</h3>
-              {data.expenses.map((expense: any, index: number) => (
-                <div key={index} className="bg-muted p-4 rounded-lg">
-                  <div className="font-medium">{expense.title}</div>
-                  <div className="text-sm text-muted-foreground">
-                    Total expense: ${expense.totalAmount}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Your share: ${expense.amount}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Paid by: {expense.paidBy}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container py-8">
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-2xl">Expense Summary for {data.person}</CardTitle>
+              <p className="text-muted-foreground">
+                Amount owed to <span className="font-semibold">{data.owedTo}</span>
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-2xl font-bold text-primary">
+                Total amount to pay: ${data.totalOwed.toFixed(2)}
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Expense Breakdown:</h3>
+                {data.expenses.map((expense: any, index: number) => (
+                  <Card key={index} className="bg-muted/50">
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="font-medium text-lg">{expense.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Paid by {expense.paidBy}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold">Your share: ${expense.amount}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Total expense: ${expense.totalAmount}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   } catch (error) {
