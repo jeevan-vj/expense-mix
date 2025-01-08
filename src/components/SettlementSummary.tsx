@@ -43,28 +43,24 @@ export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
   };
 
   const handleShare = (person: string, owedTo: string, amount: number) => {
-    // Find relevant expenses where this person owes money to owedTo
-    const relevantExpenses = expenses.filter(
+    // Find the first expense where this person owes money to owedTo
+    const relevantExpense = expenses.find(
       (expense) => 
         expense.paidBy === owedTo && 
         expense.participants.includes(person)
     );
 
-    // Create the share URL with expense details
-    const shareData = {
-      expenses: relevantExpenses.map(expense => ({
-        title: expense.title,
-        amount: (expense.amount / expense.participants.length).toFixed(2),
-        paidBy: expense.paidBy,
-        totalAmount: expense.amount,
-      })),
-      person,
-      owedTo,
-      totalOwed: amount,
-    };
+    if (!relevantExpense) {
+      toast({
+        title: "Error",
+        description: "Could not find relevant expense details.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Create a shareable URL with the data encoded
-    const shareUrl = `${window.location.origin}/share?data=${encodeURIComponent(JSON.stringify(shareData))}`;
+    // Create the share URL with expense ID and participant
+    const shareUrl = `${window.location.origin}/share?id=${relevantExpense.id}&participant=${person}`;
 
     // Copy to clipboard
     navigator.clipboard.writeText(shareUrl).then(() => {
