@@ -1,7 +1,7 @@
 import { ExpenseCard } from "./ExpenseCard";
 
 interface Expense {
-  id: number;
+  id: string;
   title: string;
   amount: number;
   date: Date;

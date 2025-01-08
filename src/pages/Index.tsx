@@ -41,7 +41,7 @@ const Index = () => {
 
       if (expensesError) throw expensesError;
 
-      const formattedExpenses = expensesData.map(expense => ({
+      const formattedExpenses: Expense[] = expensesData.map(expense => ({
         id: expense.id,
         title: expense.title,
         amount: expense.amount,
