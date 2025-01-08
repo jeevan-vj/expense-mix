@@ -4,6 +4,7 @@ import { ExpenseList } from "@/components/ExpenseList";
 import { SettlementSummary } from "@/components/SettlementSummary";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Expense {
   id: string;
@@ -17,6 +18,7 @@ interface Expense {
 const Index = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchExpenses();
@@ -113,13 +115,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container py-8">
+      <div className="container py-8 px-4 md:px-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Expense Splitter</h1>
           <p className="text-muted-foreground">Track and split expenses with friends</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-[2fr,1fr]">
+        <div className={`grid gap-6 ${isMobile ? '' : 'md:grid-cols-[2fr,1fr]'}`}>
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">Recent Expenses</h2>

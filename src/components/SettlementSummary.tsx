@@ -2,6 +2,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Share2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Settlement {
   person: string;
@@ -10,7 +12,7 @@ interface Settlement {
 
 interface SettlementSummaryProps {
   expenses: Array<{
-    id: string;  // Changed from number to string to match Supabase UUID
+    id: string;
     title: string;
     amount: number;
     paidBy: string;
@@ -20,6 +22,7 @@ interface SettlementSummaryProps {
 
 export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const calculateSettlements = () => {
     const balances: { [key: string]: { [key: string]: number } } = {};
@@ -88,40 +91,82 @@ export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
     );
   }
 
+  const MobileView = () => (
+    <div className="space-y-4">
+      {people.map((person) => {
+        const owes = settlements[person] || {};
+        return Object.entries(owes).map(([owedTo, amount]) => (
+          <Card key={`${person}-${owedTo}`} className="bg-white">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-sm text-muted-foreground">From</div>
+                  <div className="font-medium">{person}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">To</div>
+                  <div className="font-medium">{owedTo}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm text-muted-foreground">Amount</div>
+                  <div className="font-medium text-primary">${amount.toFixed(2)}</div>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleShare(person, owedTo, amount)}
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ));
+      })}
+    </div>
+  );
+
+  const DesktopView = () => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Person</TableHead>
+          <TableHead>Owes To</TableHead>
+          <TableHead className="text-right">Amount</TableHead>
+          <TableHead className="w-[100px]">Share</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {people.map((person) => {
+          const owes = settlements[person] || {};
+          return Object.entries(owes).map(([owedTo, amount]) => (
+            <TableRow key={`${person}-${owedTo}`}>
+              <TableCell className="font-medium">{person}</TableCell>
+              <TableCell>{owedTo}</TableCell>
+              <TableCell className="text-right">${amount.toFixed(2)}</TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleShare(person, owedTo, amount)}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ));
+        })}
+      </TableBody>
+    </Table>
+  );
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Settlement Summary</h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Person</TableHead>
-            <TableHead>Owes To</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead className="w-[100px]">Share</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {people.map((person) => {
-            const owes = settlements[person] || {};
-            return Object.entries(owes).map(([owedTo, amount]) => (
-              <TableRow key={`${person}-${owedTo}`}>
-                <TableCell className="font-medium">{person}</TableCell>
-                <TableCell>{owedTo}</TableCell>
-                <TableCell className="text-right">${amount.toFixed(2)}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleShare(person, owedTo, amount)}
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ));
-          })}
-        </TableBody>
-      </Table>
+      {isMobile ? <MobileView /> : <DesktopView />}
     </div>
   );
 };
