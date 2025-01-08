@@ -10,7 +10,7 @@ interface Settlement {
 
 interface SettlementSummaryProps {
   expenses: Array<{
-    id: number;
+    id: string;  // Changed from number to string to match Supabase UUID
     title: string;
     amount: number;
     paidBy: string;
