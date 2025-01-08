@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AddExpenseDialog } from "@/components/AddExpenseDialog";
 import { ExpenseList } from "@/components/ExpenseList";
 import { SettlementSummary } from "@/components/SettlementSummary";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Expense {
-  id: number;
+  id: string;
   title: string;
   amount: number;
   date: Date;
@@ -14,16 +16,97 @@ interface Expense {
 
 const Index = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { toast } = useToast();
 
-  const handleAddExpense = (newExpense: Omit<Expense, "id" | "date">) => {
-    setExpenses((prev) => [
-      {
-        ...newExpense,
-        id: Date.now(),
-        date: new Date(),
-      },
-      ...prev,
-    ]);
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      const { data: expensesData, error: expensesError } = await supabase
+        .from('expenses')
+        .select(`
+          id,
+          title,
+          amount,
+          paid_by,
+          created_at,
+          contributions (
+            participant,
+            amount
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (expensesError) throw expensesError;
+
+      const formattedExpenses = expensesData.map(expense => ({
+        id: expense.id,
+        title: expense.title,
+        amount: expense.amount,
+        date: new Date(expense.created_at),
+        paidBy: expense.paid_by,
+        participants: expense.contributions.map(c => c.participant)
+      }));
+
+      setExpenses(formattedExpenses);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load expenses",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddExpense = async (newExpense: Omit<Expense, "id" | "date">) => {
+    try {
+      // Insert the expense
+      const { data: expenseData, error: expenseError } = await supabase
+        .from('expenses')
+        .insert({
+          title: newExpense.title,
+          amount: newExpense.amount,
+          paid_by: newExpense.paidBy
+        })
+        .select()
+        .single();
+
+      if (expenseError) throw expenseError;
+
+      // Calculate amount per person
+      const amountPerPerson = newExpense.amount / newExpense.participants.length;
+
+      // Insert contributions
+      const contributions = newExpense.participants.map(participant => ({
+        expense_id: expenseData.id,
+        participant,
+        amount: amountPerPerson
+      }));
+
+      const { error: contributionsError } = await supabase
+        .from('contributions')
+        .insert(contributions);
+
+      if (contributionsError) throw contributionsError;
+
+      // Refresh expenses list
+      fetchExpenses();
+
+      toast({
+        title: "Success",
+        description: "Expense added successfully",
+      });
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add expense",
+        variant: "destructive",
+      });
+    }
   };
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);

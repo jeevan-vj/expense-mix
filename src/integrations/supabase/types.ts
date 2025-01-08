@@ -9,6 +9,62 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      contributions: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_id: string | null
+          id: string
+          participant: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          participant: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          participant?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contributions_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          paid_by: string
+          title: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          paid_by: string
+          title: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          paid_by?: string
+          title?: string
+        }
+        Relationships: []
+      }
       flashcard_sets: {
         Row: {
           created_at: string
