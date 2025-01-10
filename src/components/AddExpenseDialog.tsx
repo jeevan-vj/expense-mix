@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ interface AddExpenseDialogProps {
 export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
   const [title, setTitle] = useState("");
   const [paidBy, setPaidBy] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
   const [participants, setParticipants] = useState<Participant[]>([{ name: "", amount: "" }]);
   const [isEqualSplit, setIsEqualSplit] = useState(true);
   const { toast } = useToast();
@@ -48,17 +49,21 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
     newParticipants[index] = { ...newParticipants[index], [field]: value };
     setParticipants(newParticipants);
 
-    // If name is updated and equal split is enabled, recalculate amounts
     if (field === "name" && isEqualSplit) {
       updateEqualAmounts(newParticipants);
+    }
+
+    // Validate total when updating amounts in varying mode
+    if (field === "amount" && !isEqualSplit) {
+      validateTotalAmount(newParticipants);
     }
   };
 
   const updateEqualAmounts = (currentParticipants: Participant[]) => {
     const validParticipants = currentParticipants.filter(p => p.name.trim());
-    if (validParticipants.length === 0) return;
+    if (validParticipants.length === 0 || !totalAmount) return;
 
-    const total = calculateTotal();
+    const total = parseFloat(totalAmount);
     const equalAmount = (total / validParticipants.length).toFixed(2);
 
     const updatedParticipants = currentParticipants.map(p => ({
@@ -69,13 +74,29 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
     setParticipants(updatedParticipants);
   };
 
-  const calculateTotal = () => {
-    return participants.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  const validateTotalAmount = (currentParticipants: Participant[]) => {
+    const sum = currentParticipants.reduce((total, p) => total + (parseFloat(p.amount) || 0), 0);
+    const total = parseFloat(totalAmount);
+
+    if (sum > total) {
+      toast({
+        title: "Warning",
+        description: "Individual contributions exceed the total amount",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSplitToggle = (checked: boolean) => {
     setIsEqualSplit(checked);
-    if (checked) {
+    if (checked && totalAmount) {
+      updateEqualAmounts(participants);
+    }
+  };
+
+  const handleTotalAmountChange = (value: string) => {
+    setTotalAmount(value);
+    if (isEqualSplit) {
       updateEqualAmounts(participants);
     }
   };
@@ -83,7 +104,7 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title || !paidBy || participants.some(p => !p.name || !p.amount)) {
+    if (!title || !paidBy || !totalAmount || participants.some(p => !p.name || !p.amount)) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -92,11 +113,21 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
       return;
     }
 
-    const totalAmount = calculateTotal();
+    const sum = participants.reduce((total, p) => total + (parseFloat(p.amount) || 0), 0);
+    const total = parseFloat(totalAmount);
+
+    if (Math.abs(sum - total) > 0.01) {
+      toast({
+        title: "Error",
+        description: "Individual contributions must equal the total amount",
+        variant: "destructive",
+      });
+      return;
+    }
     
     onAddExpense({
       title,
-      amount: totalAmount,
+      amount: total,
       paidBy,
       participants: participants.map(p => ({
         participant: p.name,
@@ -106,6 +137,7 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
 
     setTitle("");
     setPaidBy("");
+    setTotalAmount("");
     setParticipants([{ name: "", amount: "" }]);
     setIsEqualSplit(true);
 
@@ -144,6 +176,17 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
               placeholder="John"
               value={paidBy}
               onChange={(e) => setPaidBy(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="totalAmount">Total Amount</Label>
+            <Input
+              id="totalAmount"
+              type="number"
+              step="0.01"
+              placeholder="100.00"
+              value={totalAmount}
+              onChange={(e) => handleTotalAmountChange(e.target.value)}
             />
           </div>
           <div className="flex items-center justify-between space-x-2">
@@ -219,8 +262,10 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
           </div>
           <div className="pt-2 border-t">
             <div className="flex justify-between items-center text-sm">
-              <span className="font-medium">Total Amount:</span>
-              <span className="font-bold text-primary">${calculateTotal().toFixed(2)}</span>
+              <span className="font-medium">Current Total:</span>
+              <span className="font-bold text-primary">
+                ${participants.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(2)}
+              </span>
             </div>
           </div>
           <Button type="submit" className="w-full">Add Expense</Button>
