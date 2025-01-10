@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, MinusCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { PlusCircle, MinusCircle, Equal, Variable } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Participant {
@@ -24,6 +25,7 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
   const [title, setTitle] = useState("");
   const [paidBy, setPaidBy] = useState("");
   const [participants, setParticipants] = useState<Participant[]>([{ name: "", amount: "" }]);
+  const [isEqualSplit, setIsEqualSplit] = useState(true);
   const { toast } = useToast();
 
   const addParticipant = () => {
@@ -35,6 +37,9 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
       const newParticipants = [...participants];
       newParticipants.splice(index, 1);
       setParticipants(newParticipants);
+      if (isEqualSplit) {
+        updateEqualAmounts(newParticipants);
+      }
     }
   };
 
@@ -42,10 +47,37 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
     const newParticipants = [...participants];
     newParticipants[index] = { ...newParticipants[index], [field]: value };
     setParticipants(newParticipants);
+
+    // If name is updated and equal split is enabled, recalculate amounts
+    if (field === "name" && isEqualSplit) {
+      updateEqualAmounts(newParticipants);
+    }
+  };
+
+  const updateEqualAmounts = (currentParticipants: Participant[]) => {
+    const validParticipants = currentParticipants.filter(p => p.name.trim());
+    if (validParticipants.length === 0) return;
+
+    const total = calculateTotal();
+    const equalAmount = (total / validParticipants.length).toFixed(2);
+
+    const updatedParticipants = currentParticipants.map(p => ({
+      ...p,
+      amount: p.name.trim() ? equalAmount : ""
+    }));
+
+    setParticipants(updatedParticipants);
   };
 
   const calculateTotal = () => {
     return participants.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  };
+
+  const handleSplitToggle = (checked: boolean) => {
+    setIsEqualSplit(checked);
+    if (checked) {
+      updateEqualAmounts(participants);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -75,6 +107,7 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
     setTitle("");
     setPaidBy("");
     setParticipants([{ name: "", amount: "" }]);
+    setIsEqualSplit(true);
 
     toast({
       title: "Success",
@@ -112,6 +145,26 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
               value={paidBy}
               onChange={(e) => setPaidBy(e.target.value)}
             />
+          </div>
+          <div className="flex items-center justify-between space-x-2">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="split-mode"
+                checked={isEqualSplit}
+                onCheckedChange={handleSplitToggle}
+              />
+              <Label htmlFor="split-mode" className="text-sm">Equal Split</Label>
+            </div>
+            <div className="flex items-center space-x-1 text-muted-foreground">
+              {isEqualSplit ? (
+                <Equal className="h-4 w-4" />
+              ) : (
+                <Variable className="h-4 w-4" />
+              )}
+              <span className="text-sm">
+                {isEqualSplit ? "Split equally" : "Varying amounts"}
+              </span>
+            </div>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -157,6 +210,8 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
                     placeholder="Amount"
                     value={participant.amount}
                     onChange={(e) => updateParticipant(index, "amount", e.target.value)}
+                    readOnly={isEqualSplit}
+                    className={isEqualSplit ? "bg-gray-50" : ""}
                   />
                 </div>
               </div>
