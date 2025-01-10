@@ -6,7 +6,10 @@ interface Expense {
   amount: number;
   date: Date;
   paidBy: string;
-  participants: string[];
+  participants: Array<{
+    participant: string;
+    amount: number;
+  }>;
 }
 
 interface ExpenseListProps {

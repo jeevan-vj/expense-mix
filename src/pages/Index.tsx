@@ -12,7 +12,10 @@ interface Expense {
   amount: number;
   date: Date;
   paidBy: string;
-  participants: string[];
+  participants: Array<{
+    participant: string;
+    amount: number;
+  }>;
 }
 
 const Index = () => {
@@ -49,7 +52,10 @@ const Index = () => {
         amount: expense.amount,
         date: new Date(expense.created_at),
         paidBy: expense.paid_by,
-        participants: expense.contributions.map(c => c.participant)
+        participants: expense.contributions.map(c => ({
+          participant: c.participant,
+          amount: c.amount
+        }))
       }));
 
       setExpenses(formattedExpenses);
@@ -63,7 +69,15 @@ const Index = () => {
     }
   };
 
-  const handleAddExpense = async (newExpense: Omit<Expense, "id" | "date">) => {
+  const handleAddExpense = async (newExpense: {
+    title: string;
+    amount: number;
+    paidBy: string;
+    participants: Array<{
+      participant: string;
+      amount: number;
+    }>;
+  }) => {
     try {
       // Insert the expense
       const { data: expenseData, error: expenseError } = await supabase
@@ -78,14 +92,11 @@ const Index = () => {
 
       if (expenseError) throw expenseError;
 
-      // Calculate amount per person
-      const amountPerPerson = newExpense.amount / newExpense.participants.length;
-
       // Insert contributions
-      const contributions = newExpense.participants.map(participant => ({
+      const contributions = newExpense.participants.map(p => ({
         expense_id: expenseData.id,
-        participant,
-        amount: amountPerPerson
+        participant: p.participant,
+        amount: p.amount
       }));
 
       const { error: contributionsError } = await supabase
