@@ -16,7 +16,10 @@ interface SettlementSummaryProps {
     title: string;
     amount: number;
     paidBy: string;
-    participants: string[];
+    participants: Array<{
+      participant: string;
+      amount: number;
+    }>;
   }>;
 }
 
@@ -28,16 +31,15 @@ export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
     const balances: { [key: string]: { [key: string]: number } } = {};
 
     expenses.forEach((expense) => {
-      const amountPerPerson = expense.amount / expense.participants.length;
-
       expense.participants.forEach((participant) => {
-        if (!balances[participant]) {
-          balances[participant] = {};
+        if (!balances[participant.participant]) {
+          balances[participant.participant] = {};
         }
 
-        if (participant !== expense.paidBy) {
+        if (participant.participant !== expense.paidBy) {
           // Participant owes money to paidBy
-          balances[participant][expense.paidBy] = (balances[participant][expense.paidBy] || 0) + amountPerPerson;
+          balances[participant.participant][expense.paidBy] = 
+            (balances[participant.participant][expense.paidBy] || 0) + participant.amount;
         }
       });
     });
@@ -46,11 +48,10 @@ export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
   };
 
   const handleShare = (person: string, owedTo: string, amount: number) => {
-    // Find the first expense where this person owes money to owedTo
     const relevantExpense = expenses.find(
       (expense) => 
         expense.paidBy === owedTo && 
-        expense.participants.includes(person)
+        expense.participants.some(p => p.participant === person)
     );
 
     if (!relevantExpense) {
@@ -62,10 +63,8 @@ export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
       return;
     }
 
-    // Create the share URL with expense ID and participant
     const shareUrl = `${window.location.origin}/share?id=${relevantExpense.id}&participant=${person}`;
 
-    // Copy to clipboard
     navigator.clipboard.writeText(shareUrl).then(() => {
       toast({
         title: "Share link copied!",
@@ -81,7 +80,7 @@ export const SettlementSummary = ({ expenses }: SettlementSummaryProps) => {
   };
 
   const settlements = calculateSettlements();
-  const people = Array.from(new Set(expenses.flatMap(e => [e.paidBy, ...e.participants])));
+  const people = Array.from(new Set(expenses.flatMap(e => [e.paidBy, ...e.participants.map(p => p.participant)])));
 
   if (expenses.length === 0) {
     return (
