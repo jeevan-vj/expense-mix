@@ -5,6 +5,9 @@ import { SettlementSummary } from "@/components/SettlementSummary";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 interface Expense {
   id: string;
@@ -20,12 +23,34 @@ interface Expense {
 
 const Index = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [user, setUser] = useState(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        navigate("/auth");
+      }
+      setUser(session?.user || null);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchExpenses();
+    }
+  }, [user]);
 
   const fetchExpenses = async () => {
     try {
@@ -78,21 +103,25 @@ const Index = () => {
       amount: number;
     }>;
   }) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
     try {
-      // Insert the expense
       const { data: expenseData, error: expenseError } = await supabase
         .from('expenses')
         .insert({
           title: newExpense.title,
           amount: newExpense.amount,
-          paid_by: newExpense.paidBy
+          paid_by: newExpense.paidBy,
+          user_id: user.id
         })
         .select()
         .single();
 
       if (expenseError) throw expenseError;
 
-      // Insert contributions
       const contributions = newExpense.participants.map(p => ({
         expense_id: expenseData.id,
         participant: p.participant,
@@ -105,7 +134,6 @@ const Index = () => {
 
       if (contributionsError) throw contributionsError;
 
-      // Refresh expenses list
       fetchExpenses();
 
       toast({
@@ -122,14 +150,28 @@ const Index = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container py-8 px-4 md:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Expense Splitter</h1>
-          <p className="text-muted-foreground">Track and split expenses with friends</p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Expense Splitter</h1>
+            <p className="text-muted-foreground">Track and split expenses with friends</p>
+          </div>
+          <Button variant="outline" onClick={handleSignOut} className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
         </div>
 
         <div className={`grid gap-6 ${isMobile ? '' : 'md:grid-cols-[2fr,1fr]'}`}>

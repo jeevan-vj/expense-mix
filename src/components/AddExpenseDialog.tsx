@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PlusCircle, MinusCircle, Equal, Variable } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface Participant {
   name: string;
@@ -28,6 +30,7 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
   const [participants, setParticipants] = useState<Participant[]>([{ name: "", amount: "" }]);
   const [isEqualSplit, setIsEqualSplit] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const addParticipant = () => {
     setParticipants([...participants, { name: "", amount: "" }]);
@@ -101,8 +104,14 @@ export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) {
+      navigate("/auth");
+      return;
+    }
     
     if (!title || !paidBy || !totalAmount || participants.some(p => !p.name || !p.amount)) {
       toast({
