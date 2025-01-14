@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 interface ExpenseFormData {
   title: string;
@@ -38,6 +39,7 @@ export const AddExpenseDialog = ({
   trigger 
 }: AddExpenseDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [splitEvenly, setSplitEvenly] = useState(false);
   const [participantCount, setParticipantCount] = useState(
     initialData?.participants.length || 2
   );
@@ -53,6 +55,16 @@ export const AddExpenseDialog = ({
 
   const amount = watch("amount");
 
+  const handleSplitEvenly = () => {
+    const totalAmount = Number(amount);
+    const splitAmount = totalAmount / participantCount;
+    const participants = Array(participantCount).fill(null).map((_, index) => ({
+      participant: watch(`participants.${index}.participant`),
+      amount: splitAmount,
+    }));
+    setValue("participants", participants);
+  };
+
   const onSubmit = (data: ExpenseFormData) => {
     if (isEditing && onEditExpense) {
       onEditExpense(data);
@@ -66,21 +78,35 @@ export const AddExpenseDialog = ({
   const handleAddParticipant = () => {
     setParticipantCount((prev) => prev + 1);
     const currentParticipants = watch("participants") || [];
-    setValue("participants", [
-      ...currentParticipants,
-      { participant: "", amount: 0 },
-    ]);
+    const newParticipant = { participant: "", amount: splitEvenly ? Number(amount) / (participantCount + 1) : 0 };
+    
+    if (splitEvenly) {
+      // If split evenly is enabled, recalculate all amounts
+      const splitAmount = Number(amount) / (participantCount + 1);
+      const updatedParticipants = [...currentParticipants].map(p => ({
+        ...p,
+        amount: splitAmount
+      }));
+      setValue("participants", [...updatedParticipants, newParticipant]);
+    } else {
+      setValue("participants", [...currentParticipants, newParticipant]);
+    }
   };
 
-  const handleSplitEvenly = () => {
-    const totalAmount = Number(amount);
-    const splitAmount = totalAmount / participantCount;
-    const participants = Array(participantCount).fill(null).map((_, index) => ({
-      participant: watch(`participants.${index}.participant`),
-      amount: splitAmount,
-    }));
-    setValue("participants", participants);
+  const handleSplitEvenlyToggle = (checked: boolean) => {
+    setSplitEvenly(checked);
+    if (checked) {
+      handleSplitEvenly();
+    }
   };
+
+  // Watch for amount changes to update split if needed
+  const watchedAmount = watch("amount");
+  React.useEffect(() => {
+    if (splitEvenly && watchedAmount) {
+      handleSplitEvenly();
+    }
+  }, [watchedAmount, splitEvenly]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -128,25 +154,24 @@ export const AddExpenseDialog = ({
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Participants</Label>
-              <div className="space-x-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleSplitEvenly}
-                >
-                  Split Evenly
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleAddParticipant}
-                >
-                  Add Participant
-                </Button>
+              <div className="space-y-0.5">
+                <Label>Participants</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={splitEvenly}
+                    onCheckedChange={handleSplitEvenlyToggle}
+                  />
+                  <Label>Split Evenly</Label>
+                </div>
               </div>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={handleAddParticipant}
+              >
+                Add Participant
+              </Button>
             </div>
 
             <div className="space-y-4">
@@ -172,6 +197,7 @@ export const AddExpenseDialog = ({
                           type="number"
                           step="0.01"
                           placeholder="0.00"
+                          disabled={splitEvenly}
                           {...register(`participants.${index}.amount` as const, {
                             required: true,
                             valueAsNumber: true,
