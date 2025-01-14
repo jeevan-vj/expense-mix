@@ -94,6 +94,53 @@ const Index = () => {
     }
   };
 
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      // First delete all contributions
+      const { error: contributionsError } = await supabase
+        .from('contributions')
+        .delete()
+        .eq('expense_id', id);
+
+      if (contributionsError) throw contributionsError;
+
+      // Then delete the expense
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id);
+
+      if (expenseError) throw expenseError;
+
+      // Update local state
+      setExpenses(expenses.filter(expense => expense.id !== id));
+
+      toast({
+        title: "Success",
+        description: "Expense deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete expense",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditExpense = (id: string) => {
+    // Find the expense to edit
+    const expense = expenses.find(e => e.id === id);
+    if (!expense) return;
+
+    // TODO: Implement edit functionality
+    toast({
+      title: "Coming Soon",
+      description: "Edit functionality will be implemented soon",
+    });
+  };
+
   const handleAddExpense = async (newExpense: {
     title: string;
     amount: number;
@@ -180,7 +227,11 @@ const Index = () => {
               <h2 className="text-2xl font-semibold">Recent Expenses</h2>
               <AddExpenseDialog onAddExpense={handleAddExpense} />
             </div>
-            <ExpenseList expenses={expenses} />
+            <ExpenseList 
+              expenses={expenses} 
+              onDeleteExpense={handleDeleteExpense}
+              onEditExpense={handleEditExpense}
+            />
           </div>
 
           <div className="space-y-6">

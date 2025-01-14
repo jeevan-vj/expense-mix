@@ -14,9 +14,11 @@ interface Expense {
 
 interface ExpenseListProps {
   expenses: Expense[];
+  onDeleteExpense: (id: string) => void;
+  onEditExpense: (id: string) => void;
 }
 
-export const ExpenseList = ({ expenses }: ExpenseListProps) => {
+export const ExpenseList = ({ expenses, onDeleteExpense, onEditExpense }: ExpenseListProps) => {
   if (expenses.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -28,7 +30,12 @@ export const ExpenseList = ({ expenses }: ExpenseListProps) => {
   return (
     <div className="space-y-4">
       {expenses.map((expense) => (
-        <ExpenseCard key={expense.id} {...expense} />
+        <ExpenseCard 
+          key={expense.id} 
+          {...expense} 
+          onDelete={onDeleteExpense}
+          onEdit={onEditExpense}
+        />
       ))}
     </div>
   );

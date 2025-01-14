@@ -1,8 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
-import { DollarSign, Users, User } from "lucide-react";
+import { DollarSign, Users, User, Trash2, Edit2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ExpenseCardProps {
+  id: string;
   title: string;
   amount: number;
   date: Date;
@@ -11,9 +24,20 @@ interface ExpenseCardProps {
     participant: string;
     amount: number;
   }>;
+  onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
 }
 
-export const ExpenseCard = ({ title, amount, date, paidBy, participants }: ExpenseCardProps) => {
+export const ExpenseCard = ({ 
+  id,
+  title, 
+  amount, 
+  date, 
+  paidBy, 
+  participants,
+  onDelete,
+  onEdit 
+}: ExpenseCardProps) => {
   const totalParticipants = participants.length;
   const averageAmount = amount / totalParticipants;
   const isEqualSplit = participants.every(p => Math.abs(p.amount - averageAmount) < 0.01);
@@ -27,8 +51,48 @@ export const ExpenseCard = ({ title, amount, date, paidBy, participants }: Expen
             {formatDistanceToNow(date, { addSuffix: true })}
           </p>
         </div>
-        <div className="text-2xl font-bold text-primary">
-          ${amount.toFixed(2)}
+        <div className="flex items-center gap-2">
+          <div className="text-2xl font-bold text-primary">
+            ${amount.toFixed(2)}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(id)}
+              className="h-8 w-8"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this expense? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(id)}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
