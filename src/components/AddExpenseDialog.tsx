@@ -23,7 +23,7 @@ interface ExpenseFormData {
 }
 
 interface AddExpenseDialogProps {
-  onAddExpense: (expense: ExpenseFormData) => void;
+  onAddExpense?: (expense: ExpenseFormData) => void;
   onEditExpense?: (expense: ExpenseFormData) => void;
   isEditing?: boolean;
   initialData?: ExpenseFormData;
@@ -56,7 +56,7 @@ export const AddExpenseDialog = ({
   const onSubmit = (data: ExpenseFormData) => {
     if (isEditing && onEditExpense) {
       onEditExpense(data);
-    } else {
+    } else if (onAddExpense) {
       onAddExpense(data);
     }
     setOpen(false);
