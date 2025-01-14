@@ -129,16 +129,69 @@ const Index = () => {
     }
   };
 
-  const handleEditExpense = (id: string) => {
-    // Find the expense to edit
-    const expense = expenses.find(e => e.id === id);
-    if (!expense) return;
+  const handleEditExpense = async (id: string, updatedExpense: {
+    title: string;
+    amount: number;
+    paidBy: string;
+    participants: Array<{
+      participant: string;
+      amount: number;
+    }>;
+  }) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
 
-    // TODO: Implement edit functionality
-    toast({
-      title: "Coming Soon",
-      description: "Edit functionality will be implemented soon",
-    });
+    try {
+      // Update the expense
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .update({
+          title: updatedExpense.title,
+          amount: updatedExpense.amount,
+          paid_by: updatedExpense.paidBy,
+        })
+        .eq('id', id);
+
+      if (expenseError) throw expenseError;
+
+      // Delete old contributions
+      const { error: deleteContributionsError } = await supabase
+        .from('contributions')
+        .delete()
+        .eq('expense_id', id);
+
+      if (deleteContributionsError) throw deleteContributionsError;
+
+      // Add new contributions
+      const contributions = updatedExpense.participants.map(p => ({
+        expense_id: id,
+        participant: p.participant,
+        amount: p.amount
+      }));
+
+      const { error: contributionsError } = await supabase
+        .from('contributions')
+        .insert(contributions);
+
+      if (contributionsError) throw contributionsError;
+
+      // Refresh expenses
+      fetchExpenses();
+
+      toast({
+        title: "Success",
+        description: "Expense updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update expense",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddExpense = async (newExpense: {

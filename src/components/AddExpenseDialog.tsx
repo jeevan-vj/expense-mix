@@ -1,283 +1,192 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { PlusCircle, MinusCircle, Equal, Variable } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
-interface Participant {
-  name: string;
-  amount: string;
+interface ExpenseFormData {
+  title: string;
+  amount: number;
+  paidBy: string;
+  participants: Array<{
+    participant: string;
+    amount: number;
+  }>;
 }
 
 interface AddExpenseDialogProps {
-  onAddExpense: (expense: {
-    title: string;
-    amount: number;
-    paidBy: string;
-    participants: { participant: string; amount: number }[];
-  }) => void;
+  onAddExpense: (expense: ExpenseFormData) => void;
+  onEditExpense?: (expense: ExpenseFormData) => void;
+  isEditing?: boolean;
+  initialData?: ExpenseFormData;
+  trigger?: React.ReactNode;
 }
 
-export const AddExpenseDialog = ({ onAddExpense }: AddExpenseDialogProps) => {
-  const [title, setTitle] = useState("");
-  const [paidBy, setPaidBy] = useState("");
-  const [totalAmount, setTotalAmount] = useState("");
-  const [participants, setParticipants] = useState<Participant[]>([{ name: "", amount: "" }]);
-  const [isEqualSplit, setIsEqualSplit] = useState(true);
-  const { toast } = useToast();
-  const navigate = useNavigate();
+export const AddExpenseDialog = ({ 
+  onAddExpense, 
+  onEditExpense,
+  isEditing = false,
+  initialData,
+  trigger 
+}: AddExpenseDialogProps) => {
+  const [open, setOpen] = useState(false);
+  const [participantCount, setParticipantCount] = useState(
+    initialData?.participants.length || 2
+  );
 
-  const addParticipant = () => {
-    setParticipants([...participants, { name: "", amount: "" }]);
+  const { register, handleSubmit, reset, watch, setValue } = useForm<ExpenseFormData>({
+    defaultValues: initialData || {
+      title: "",
+      amount: 0,
+      paidBy: "",
+      participants: Array(2).fill({ participant: "", amount: 0 }),
+    },
+  });
+
+  const amount = watch("amount");
+
+  const onSubmit = (data: ExpenseFormData) => {
+    if (isEditing && onEditExpense) {
+      onEditExpense(data);
+    } else {
+      onAddExpense(data);
+    }
+    setOpen(false);
+    reset();
   };
 
-  const removeParticipant = (index: number) => {
-    if (participants.length > 1) {
-      const newParticipants = [...participants];
-      newParticipants.splice(index, 1);
-      setParticipants(newParticipants);
-      if (isEqualSplit) {
-        updateEqualAmounts(newParticipants);
-      }
-    }
+  const handleAddParticipant = () => {
+    setParticipantCount((prev) => prev + 1);
+    const currentParticipants = watch("participants") || [];
+    setValue("participants", [
+      ...currentParticipants,
+      { participant: "", amount: 0 },
+    ]);
   };
 
-  const updateParticipant = (index: number, field: keyof Participant, value: string) => {
-    const newParticipants = [...participants];
-    newParticipants[index] = { ...newParticipants[index], [field]: value };
-    setParticipants(newParticipants);
-
-    if (field === "name" && isEqualSplit) {
-      updateEqualAmounts(newParticipants);
-    }
-
-    // Validate total when updating amounts in varying mode
-    if (field === "amount" && !isEqualSplit) {
-      validateTotalAmount(newParticipants);
-    }
-  };
-
-  const updateEqualAmounts = (currentParticipants: Participant[]) => {
-    const validParticipants = currentParticipants.filter(p => p.name.trim());
-    if (validParticipants.length === 0 || !totalAmount) return;
-
-    const total = parseFloat(totalAmount);
-    const equalAmount = (total / validParticipants.length).toFixed(2);
-
-    const updatedParticipants = currentParticipants.map(p => ({
-      ...p,
-      amount: p.name.trim() ? equalAmount : ""
+  const handleSplitEvenly = () => {
+    const totalAmount = Number(amount);
+    const splitAmount = totalAmount / participantCount;
+    const participants = Array(participantCount).fill(null).map((_, index) => ({
+      participant: watch(`participants.${index}.participant`),
+      amount: splitAmount,
     }));
-
-    setParticipants(updatedParticipants);
-  };
-
-  const validateTotalAmount = (currentParticipants: Participant[]) => {
-    const sum = currentParticipants.reduce((total, p) => total + (parseFloat(p.amount) || 0), 0);
-    const total = parseFloat(totalAmount);
-
-    if (sum > total) {
-      toast({
-        title: "Warning",
-        description: "Individual contributions exceed the total amount",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSplitToggle = (checked: boolean) => {
-    setIsEqualSplit(checked);
-    if (checked && totalAmount) {
-      updateEqualAmounts(participants);
-    }
-  };
-
-  const handleTotalAmountChange = (value: string) => {
-    setTotalAmount(value);
-    if (isEqualSplit) {
-      updateEqualAmounts(participants);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const session = await supabase.auth.getSession();
-    if (!session.data.session) {
-      navigate("/auth");
-      return;
-    }
-    
-    if (!title || !paidBy || !totalAmount || participants.some(p => !p.name || !p.amount)) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const sum = participants.reduce((total, p) => total + (parseFloat(p.amount) || 0), 0);
-    const total = parseFloat(totalAmount);
-
-    if (Math.abs(sum - total) > 0.01) {
-      toast({
-        title: "Error",
-        description: "Individual contributions must equal the total amount",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    onAddExpense({
-      title,
-      amount: total,
-      paidBy,
-      participants: participants.map(p => ({
-        participant: p.name,
-        amount: parseFloat(p.amount),
-      })),
-    });
-
-    setTitle("");
-    setPaidBy("");
-    setTotalAmount("");
-    setParticipants([{ name: "", amount: "" }]);
-    setIsEqualSplit(true);
-
-    toast({
-      title: "Success",
-      description: "Expense added successfully",
-    });
+    setValue("participants", participants);
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
-          <PlusCircle className="h-4 w-4" />
-          Add Expense
-        </Button>
+        {trigger || (
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Expense
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Expense</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Expense" : "Add New Expense"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input
               id="title"
-              placeholder="Dinner at Joe's"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Expense title"
+              {...register("title", { required: true })}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              {...register("amount", { required: true, valueAsNumber: true })}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="paidBy">Paid By</Label>
             <Input
               id="paidBy"
-              placeholder="John"
-              value={paidBy}
-              onChange={(e) => setPaidBy(e.target.value)}
+              placeholder="Who paid?"
+              {...register("paidBy", { required: true })}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="totalAmount">Total Amount</Label>
-            <Input
-              id="totalAmount"
-              type="number"
-              step="0.01"
-              placeholder="100.00"
-              value={totalAmount}
-              onChange={(e) => handleTotalAmountChange(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between space-x-2">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="split-mode"
-                checked={isEqualSplit}
-                onCheckedChange={handleSplitToggle}
-              />
-              <Label htmlFor="split-mode" className="text-sm">Equal Split</Label>
-            </div>
-            <div className="flex items-center space-x-1 text-muted-foreground">
-              {isEqualSplit ? (
-                <Equal className="h-4 w-4" />
-              ) : (
-                <Variable className="h-4 w-4" />
-              )}
-              <span className="text-sm">
-                {isEqualSplit ? "Split equally" : "Varying amounts"}
-              </span>
-            </div>
-          </div>
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Participants</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addParticipant}
-                className="gap-1"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Add
-              </Button>
-            </div>
-            {participants.map((participant, index) => (
-              <div key={index} className="space-y-2 p-3 border rounded-lg">
-                <div className="flex items-center justify-between">
-                  <Label>Participant {index + 1}</Label>
-                  {participants.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeParticipant(index)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <MinusCircle className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-                <Input
-                  placeholder="Name"
-                  value={participant.name}
-                  onChange={(e) => updateParticipant(index, "name", e.target.value)}
-                  className="mb-2"
-                />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Amount"
-                    value={participant.amount}
-                    onChange={(e) => updateParticipant(index, "amount", e.target.value)}
-                    readOnly={isEqualSplit}
-                    className={isEqualSplit ? "bg-gray-50" : ""}
-                  />
-                </div>
+              <div className="space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSplitEvenly}
+                >
+                  Split Evenly
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleAddParticipant}
+                >
+                  Add Participant
+                </Button>
               </div>
-            ))}
-          </div>
-          <div className="pt-2 border-t">
-            <div className="flex justify-between items-center text-sm">
-              <span className="font-medium">Current Total:</span>
-              <span className="font-bold text-primary">
-                ${participants.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0).toFixed(2)}
-              </span>
+            </div>
+
+            <div className="space-y-4">
+              {Array(participantCount)
+                .fill(null)
+                .map((_, index) => (
+                  <div key={index} className="grid gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor={`participant-${index}`}>Name</Label>
+                        <Input
+                          id={`participant-${index}`}
+                          placeholder="Participant name"
+                          {...register(`participants.${index}.participant` as const, {
+                            required: true,
+                          })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`amount-${index}`}>Amount</Label>
+                        <Input
+                          id={`amount-${index}`}
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...register(`participants.${index}.amount` as const, {
+                            required: true,
+                            valueAsNumber: true,
+                          })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
-          <Button type="submit" className="w-full">Add Expense</Button>
+
+          <Button type="submit" className="w-full">
+            {isEditing ? "Save Changes" : "Add Expense"}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

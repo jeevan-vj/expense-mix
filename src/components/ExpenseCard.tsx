@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
-import { DollarSign, Users, User, Trash2, Edit2 } from "lucide-react";
+import { DollarSign, Users, User, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -25,7 +25,7 @@ interface ExpenseCardProps {
     amount: number;
   }>;
   onDelete: (id: string) => void;
-  onEdit: (id: string) => void;
+  editComponent: React.ReactNode;
 }
 
 export const ExpenseCard = ({ 
@@ -36,7 +36,7 @@ export const ExpenseCard = ({
   paidBy, 
   participants,
   onDelete,
-  onEdit 
+  editComponent
 }: ExpenseCardProps) => {
   const totalParticipants = participants.length;
   const averageAmount = amount / totalParticipants;
@@ -56,14 +56,7 @@ export const ExpenseCard = ({
             ${amount.toFixed(2)}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(id)}
-              className="h-8 w-8"
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
+            {editComponent}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
