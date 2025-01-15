@@ -152,12 +152,19 @@ export const useExpenses = () => {
 
   const handleAddExpense = async (newExpense: ExpenseFormData) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data: expenseData, error: expenseError } = await supabase
         .from('expenses')
         .insert({
           title: newExpense.title,
           amount: newExpense.amount,
           paid_by: newExpense.paidBy,
+          user_id: user.id // Add the user_id here
         })
         .select()
         .single();
@@ -176,7 +183,7 @@ export const useExpenses = () => {
 
       if (contributionsError) throw contributionsError;
 
-      fetchExpenses();
+      await fetchExpenses();
 
       toast({
         title: "Success",
