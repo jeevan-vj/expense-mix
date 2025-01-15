@@ -144,7 +144,15 @@ const Index = () => {
     }
 
     try {
-      // Update the expense
+      // First, delete all existing contributions for this expense
+      const { error: deleteContributionsError } = await supabase
+        .from('contributions')
+        .delete()
+        .eq('expense_id', id);
+
+      if (deleteContributionsError) throw deleteContributionsError;
+
+      // Update the expense details
       const { error: expenseError } = await supabase
         .from('expenses')
         .update({
@@ -156,15 +164,7 @@ const Index = () => {
 
       if (expenseError) throw expenseError;
 
-      // Delete old contributions
-      const { error: deleteContributionsError } = await supabase
-        .from('contributions')
-        .delete()
-        .eq('expense_id', id);
-
-      if (deleteContributionsError) throw deleteContributionsError;
-
-      // Add new contributions
+      // Create new contributions
       const contributions = updatedExpense.participants.map(p => ({
         expense_id: id,
         participant: p.participant,
@@ -177,8 +177,8 @@ const Index = () => {
 
       if (contributionsError) throw contributionsError;
 
-      // Refresh expenses
-      fetchExpenses();
+      // Refresh expenses to get the latest data
+      await fetchExpenses();
 
       toast({
         title: "Success",
