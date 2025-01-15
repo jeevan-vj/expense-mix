@@ -59,11 +59,16 @@ export const AddExpenseDialog = ({
   const handleSplitEvenly = () => {
     const totalAmount = Number(amount);
     const splitAmount = totalAmount / participantCount;
-    const participants = Array(participantCount).fill(null).map((_, index) => ({
-      participant: watch(`participants.${index}.participant`),
-      amount: splitAmount,
-    }));
-    setValue("participants", participants);
+    const currentParticipants = watch("participants") || [];
+    
+    const updatedParticipants = Array(participantCount)
+      .fill(null)
+      .map((_, index) => ({
+        participant: currentParticipants[index]?.participant || "",
+        amount: splitAmount,
+      }));
+    
+    setValue("participants", updatedParticipants);
   };
 
   const onSubmit = (data: ExpenseFormData) => {
@@ -77,14 +82,18 @@ export const AddExpenseDialog = ({
   };
 
   const handleAddParticipant = () => {
-    setParticipantCount((prev) => prev + 1);
+    const newCount = participantCount + 1;
+    setParticipantCount(newCount);
+    
     const currentParticipants = watch("participants") || [];
-    const newParticipant = { participant: "", amount: splitEvenly ? Number(amount) / (participantCount + 1) : 0 };
+    const newParticipant = { 
+      participant: "", 
+      amount: splitEvenly ? Number(amount) / newCount : 0 
+    };
     
     if (splitEvenly) {
-      // If split evenly is enabled, recalculate all amounts
-      const splitAmount = Number(amount) / (participantCount + 1);
-      const updatedParticipants = [...currentParticipants].map(p => ({
+      const splitAmount = Number(amount) / newCount;
+      const updatedParticipants = currentParticipants.map(p => ({
         ...p,
         amount: splitAmount
       }));
@@ -102,12 +111,23 @@ export const AddExpenseDialog = ({
   };
 
   // Watch for amount changes to update split if needed
-  const watchedAmount = watch("amount");
   React.useEffect(() => {
-    if (splitEvenly && watchedAmount) {
+    if (splitEvenly && amount) {
       handleSplitEvenly();
     }
-  }, [watchedAmount, splitEvenly]);
+  }, [amount, splitEvenly]);
+
+  // Initialize split evenly state based on initial data
+  React.useEffect(() => {
+    if (initialData?.participants) {
+      const totalAmount = initialData.amount;
+      const splitAmount = totalAmount / initialData.participants.length;
+      const isEvenSplit = initialData.participants.every(
+        p => Math.abs(p.amount - splitAmount) < 0.01
+      );
+      setSplitEvenly(isEvenSplit);
+    }
+  }, [initialData]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
