@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -61,12 +61,10 @@ export const AddExpenseDialog = ({
     const splitAmount = totalAmount / participantCount;
     const currentParticipants = watch("participants") || [];
     
-    const updatedParticipants = Array(participantCount)
-      .fill(null)
-      .map((_, index) => ({
-        participant: currentParticipants[index]?.participant || "",
-        amount: splitAmount,
-      }));
+    const updatedParticipants = currentParticipants.map(p => ({
+      participant: p.participant || "",
+      amount: splitAmount,
+    }));
     
     setValue("participants", updatedParticipants);
   };
@@ -100,6 +98,26 @@ export const AddExpenseDialog = ({
       setValue("participants", [...updatedParticipants, newParticipant]);
     } else {
       setValue("participants", [...currentParticipants, newParticipant]);
+    }
+  };
+
+  const handleRemoveParticipant = (index: number) => {
+    const newCount = participantCount - 1;
+    if (newCount < 2) return; // Maintain minimum of 2 participants
+    
+    setParticipantCount(newCount);
+    const currentParticipants = watch("participants") || [];
+    const updatedParticipants = currentParticipants.filter((_, i) => i !== index);
+    
+    if (splitEvenly) {
+      const splitAmount = Number(amount) / newCount;
+      const recalculatedParticipants = updatedParticipants.map(p => ({
+        ...p,
+        amount: splitAmount
+      }));
+      setValue("participants", recalculatedParticipants);
+    } else {
+      setValue("participants", updatedParticipants);
     }
   };
 
@@ -200,7 +218,7 @@ export const AddExpenseDialog = ({
                 .fill(null)
                 .map((_, index) => (
                   <div key={index} className="grid gap-2">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
                       <div>
                         <Label htmlFor={`participant-${index}`}>Name</Label>
                         <Input
@@ -224,6 +242,18 @@ export const AddExpenseDialog = ({
                             valueAsNumber: true,
                           })}
                         />
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveParticipant(index)}
+                          disabled={participantCount <= 2}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
