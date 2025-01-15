@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,9 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { ExpenseFormHeader } from "./ExpenseFormHeader";
+import { ExpenseParticipantForm } from "./ExpenseParticipantForm";
 
 interface ExpenseFormData {
   title: string;
@@ -103,7 +102,7 @@ export const AddExpenseDialog = ({
 
   const handleRemoveParticipant = (index: number) => {
     const newCount = participantCount - 1;
-    if (newCount < 2) return; // Maintain minimum of 2 participants
+    if (newCount < 2) return;
     
     setParticipantCount(newCount);
     const currentParticipants = watch("participants") || [];
@@ -128,14 +127,12 @@ export const AddExpenseDialog = ({
     }
   };
 
-  // Watch for amount changes to update split if needed
   React.useEffect(() => {
     if (splitEvenly && amount) {
       handleSplitEvenly();
     }
   }, [amount, splitEvenly]);
 
-  // Initialize split evenly state based on initial data
   React.useEffect(() => {
     if (initialData?.participants) {
       const totalAmount = initialData.amount;
@@ -162,103 +159,28 @@ export const AddExpenseDialog = ({
           <DialogTitle>{isEditing ? "Edit Expense" : "Add New Expense"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              placeholder="Expense title"
-              {...register("title", { required: true })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              {...register("amount", { required: true, valueAsNumber: true })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="paidBy">Paid By</Label>
-            <Input
-              id="paidBy"
-              placeholder="Who paid?"
-              {...register("paidBy", { required: true })}
-            />
-          </div>
+          <ExpenseFormHeader
+            register={register}
+            splitEvenly={splitEvenly}
+            onSplitEvenlyChange={handleSplitEvenlyToggle}
+            onAddParticipant={handleAddParticipant}
+          />
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Participants</Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={splitEvenly}
-                    onCheckedChange={handleSplitEvenlyToggle}
-                  />
-                  <Label>Split Evenly</Label>
-                </div>
-              </div>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={handleAddParticipant}
-              >
-                Add Participant
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {Array(participantCount)
-                .fill(null)
-                .map((_, index) => (
-                  <div key={index} className="grid gap-2">
-                    <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                      <div>
-                        <Label htmlFor={`participant-${index}`}>Name</Label>
-                        <Input
-                          id={`participant-${index}`}
-                          placeholder="Participant name"
-                          {...register(`participants.${index}.participant` as const, {
-                            required: true,
-                          })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`amount-${index}`}>Amount</Label>
-                        <Input
-                          id={`amount-${index}`}
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          disabled={splitEvenly}
-                          {...register(`participants.${index}.amount` as const, {
-                            required: true,
-                            valueAsNumber: true,
-                          })}
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-10 w-10 text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveParticipant(index)}
-                          disabled={participantCount <= 2}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
+            {Array(participantCount)
+              .fill(null)
+              .map((_, index) => (
+                <ExpenseParticipantForm
+                  key={index}
+                  index={index}
+                  participant={watch(`participants.${index}.participant`)}
+                  amount={watch(`participants.${index}.amount`)}
+                  isDisabled={splitEvenly}
+                  onRemove={handleRemoveParticipant}
+                  register={register}
+                  canDelete={participantCount > 2}
+                />
+              ))}
           </div>
 
           <Button type="submit" className="w-full">
