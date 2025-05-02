@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,7 @@ const Index = () => {
       setUser(session?.user || null);
     });
 
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
       if (!session) {
@@ -42,7 +44,7 @@ const Index = () => {
     if (user) {
       fetchExpenses();
     }
-  }, [user]);
+  }, [user, fetchExpenses]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
